@@ -52,7 +52,7 @@ func pathExists(path string) (bool, error) {
 	return false, err //can't make sure if path exists.
 }
 
-func hasZdfsFlagFiles(dir string) (bool, error) {
+func hasOverlaybdBlobRef(dir string) (bool, error) {
 	fileNames := []string{iNewFormat, zdfsChecksumFile, zdfsOssurlFile, zdfsOssDataSizeFile, zdfsOssTypeFile}
 	for _, name := range fileNames {
 		fullPath := path.Join(dir, name)
@@ -76,13 +76,13 @@ func overlaybdInitDebuglogPath(dir string) string {
 	return filepath.Join(dir, zdfsMetaDir, "init-debug.log")
 }
 
-func IsZdfsLayer(dir string) (bool, error) {
+func isOverlaybdLayer(dir string) (bool, error) {
 	exists, _ := pathExists(overlaybdConfPath(dir))
 	if exists {
 		return true, nil
 	}
 
-	b, err := hasZdfsFlagFiles(path.Join(dir, "fs"))
+	b, err := hasOverlaybdBlobRef(path.Join(dir, "fs"))
 	if err != nil {
 		logrus.Errorf("LSMD ERROR failed to IsZdfsLayerInApplyDiff(dir%s), err:%s", dir, err)
 		return false, fmt.Errorf("LSMD ERROR failed to IsZdfsLayerInApplyDiff(dir%s), err:%s", dir, err)
@@ -208,6 +208,11 @@ func constructSpec(dir, parent, repo, digest string, size uint64, recordTracePat
 
 func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapshots.Info, snPath func(string) string) (bool, error) {
 
+	if b, err := isOverlaybdLayer(dir); !b {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
 	s, _ := storage.GetSnapshot(ctx, key)
 	lowers := func() []string {
 		ret := []string{}
@@ -306,12 +311,12 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 		dir := lowers[num-m-1]
 		if err := doDir(dir, parent); err != nil {
 			logrus.Errorf("LSMD ERROR doDir(%s) err:%s", dir, err)
-			return false, err
+			return true, err
 		}
 		parent = dir
 	}
-	doDir(snPath(id), parent)
-	return true, nil
+
+	return true, doDir(snPath(id), parent)
 }
 
 func copyPulledZdfsMetaFiles(srcDir, dstDir string) error {
