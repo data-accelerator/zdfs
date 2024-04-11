@@ -73,7 +73,7 @@ func overlaybdConfPath(dir string) string {
 }
 
 func overlaybdInitDebuglogPath(dir string) string {
-	return filepath.Join(dir, zdfsMetaDir, "init-debug.log")
+	return filepath.Join(dir, "block", "init-debug.log")
 }
 
 func isOverlaybdLayer(dir string) (bool, error) {
