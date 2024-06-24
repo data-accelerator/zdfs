@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	"github.com/containerd/accelerated-container-image/pkg/types"
-	"github.com/containerd/containerd/snapshots"
-	"github.com/containerd/containerd/snapshots/storage"
+	"github.com/containerd/containerd/v2/core/snapshots"
+	"github.com/containerd/containerd/v2/core/snapshots/storage"
 	"github.com/containerd/continuity"
 	"github.com/distribution/reference"
 	"github.com/pkg/errors"
