@@ -230,7 +230,7 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 			return err
 		}
 
-		refPath := path.Join(dir, path.Join(dir, "image_ref"))
+		refPath := path.Join(dir, "image_ref")
 		if b, _ := pathExists(refPath); b {
 			img, _ := os.ReadFile(refPath)
 			imageRef := string(img)
