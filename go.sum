@@ -7,8 +7,8 @@ github.com/Microsoft/hcsshim v0.12.4/go.mod h1:Iyl1WVpZzr+UkzjekHZbV8o5Z9ZkxNGx6
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
-github.com/containerd/accelerated-container-image v1.1.4 h1:9iFHrNRSFnta1A4z6HP1MVD7vH3hEd7jvJv9wnHHJHc=
-github.com/containerd/accelerated-container-image v1.1.4/go.mod h1:9mpTpL4W4yAsq2giHgo4B7wTFJgE59qCPh7dZTSpGCA=
+github.com/containerd/accelerated-container-image v1.2.0 h1:txvvjckuXjIqsKpaPfDwGcGmjwH+TJDrvUuOswEBCTg=
+github.com/containerd/accelerated-container-image v1.2.0/go.mod h1:BbY0iTEYD6XZV84E99yjUbs46EGI0CVQrjqb/Wgx9nE=
 github.com/containerd/cgroups/v3 v3.0.3 h1:S5ByHZ/h9PMe5IOQoN7E+nMc2UcLEM/V48DGDJ9kip0=
 github.com/containerd/cgroups/v3 v3.0.3/go.mod h1:8HBe7V3aWGLFPd/k03swSIsGjZhHI2WzJmticMgVuz0=
 github.com/containerd/containerd/api v1.8.0-rc.2 h1:EnWLDKWWbIRzuy71L20P3VF/DhxSaDEocsovKPdW5Oo=
