@@ -6,28 +6,40 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/containerd/accelerated-container-image/pkg/types"
 	"github.com/containerd/containerd/v2/core/snapshots"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestParseRef(t *testing.T) {
-	ref := "dadi-test-registry.cn-hangzhou.cr.aliyuncs.com/tuji/wordpress:20240303_containerd_accelerated"
-	fmt.Println(constructImageBlobURL(ref))
+	const (
+		testRef  = "dadi-test-registry.cn-hangzhou.cr.example.test/tuji/wordpress:20240303_containerd_accelerated"
+		expected = "https://dadi-test-registry.cn-hangzhou.cr.example.test/v2/tuji/wordpress/blobs"
+	)
+
+	actual, err := constructImageBlobURL(testRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual != expected {
+		t.Fatalf("expected: %s, actual: %s", expected, actual)
+	}
 }
 
 func TestPrepareOverlayBDSpec(t *testing.T) {
 	ctx := context.Background()
 
-	testdir := "/tmp/zdfs-test/snapshot/"
+	testdir := t.TempDir()
 	snPath := func(id string) string {
 		return filepath.Join(testdir, id)
 	}
-	dgst := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-	domain := "registry-1.docker.io"
-	domainNew := "registry-2.docker.io"
+	const (
+		dgst      = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+		domain    = "registry-1.example.test"
+		domainNew = "registry-2.example.test"
+	)
 
 	expectedConfig := func(repoBlobUrl string) types.OverlayBDBSConfig {
 		return types.OverlayBDBSConfig{
@@ -64,9 +76,15 @@ func TestPrepareOverlayBDSpec(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			os.RemoveAll(testdir)
-			os.MkdirAll(filepath.Join(snPath("0"), "fs"), 0o755)
-			os.MkdirAll(filepath.Join(snPath("0"), "block"), 0o755)
+			if err := os.RemoveAll(testdir); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(filepath.Join(snPath("0"), "fs"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(filepath.Join(snPath("0"), "block"), 0o755); err != nil {
+				t.Fatal(err)
+			}
 
 			// prepare snapshot dir (image_ref, .oss_url ...)
 			files := []string{iNewFormat, zdfsChecksumFile, zdfsOssurlFile, zdfsOssDataSizeFile, zdfsOssTypeFile}
@@ -90,8 +108,10 @@ func TestPrepareOverlayBDSpec(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if !ok {
+				t.Errorf("expected: true, got: %v", ok)
+			}
 
-			assert.True(t, ok)
 			var config types.OverlayBDBSConfig
 			b, err := os.ReadFile(overlaybdConfPath(snPath("0")))
 			if err != nil {
@@ -100,7 +120,9 @@ func TestPrepareOverlayBDSpec(t *testing.T) {
 			if err := json.Unmarshal(b, &config); err != nil {
 				t.Fatal(err)
 			}
-			assert.Equal(t, tc.expected, config)
+			if !reflect.DeepEqual(tc.expected, config) {
+				t.Errorf("\nexpected: %+v\nactual  : %+v\n", tc.expected, config)
+			}
 
 			out, _ := json.MarshalIndent(config, "", "  ")
 			t.Logf("construct config: \n%s", out)
