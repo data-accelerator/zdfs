@@ -2,8 +2,6 @@ module github.com/data-accelerator/zdfs
 
 go 1.22.0
 
-toolchain go1.22.2
-
 require (
 	github.com/containerd/accelerated-container-image v1.1.4
 	github.com/containerd/containerd/v2 v2.0.0-rc.3
