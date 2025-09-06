@@ -6,8 +6,8 @@ require (
 	github.com/containerd/accelerated-container-image v1.2.0
 	github.com/containerd/containerd/v2 v2.0.4
 	github.com/containerd/continuity v0.4.5
+	github.com/containerd/log v0.1.0
 	github.com/distribution/reference v0.6.0
-	github.com/sirupsen/logrus v1.9.3
 )
 
 require (
@@ -17,7 +17,6 @@ require (
 	github.com/containerd/containerd/api v1.8.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
-	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/typeurl/v2 v2.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -26,6 +25,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	go.etcd.io/bbolt v1.3.11 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect

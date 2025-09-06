@@ -14,8 +14,8 @@ import (
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/core/snapshots/storage"
 	"github.com/containerd/continuity"
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -75,7 +75,7 @@ func isOverlaybdLayer(dir string) (bool, error) {
 
 	b, err := hasOverlaybdBlobRef(filepath.Join(dir, "fs"))
 	if err != nil {
-		logrus.Errorf("LSMD ERROR failed to IsZdfsLayerInApplyDiff(dir%s), err:%s", dir, err)
+		log.G(context.TODO()).WithError(err).Errorf("LSMD ERROR failed to IsZdfsLayerInApplyDiff(dir%s)", dir)
 		return false, fmt.Errorf("LSMD ERROR failed to IsZdfsLayerInApplyDiff(dir%s), err:%s", dir, err)
 	}
 	return b, nil
@@ -212,7 +212,7 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 		return ret
 	}()
 	makeConfig := func(dir string, parent string) error {
-		logrus.Infof("ENTER makeConfig(dir: %s, parent: %s)", dir, parent)
+		log.G(ctx).Infof("ENTER makeConfig(dir: %s, parent: %s)", dir, parent)
 		dstDir := filepath.Join(dir, "block")
 
 		repo, digest, err := GetBlobRepoDigest(dstDir)
@@ -224,10 +224,10 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 		if b, _ := pathExists(refPath); b {
 			img, _ := os.ReadFile(refPath)
 			imageRef := string(img)
-			logrus.Infof("read imageRef from label.CRIImageRef: %s", imageRef)
+			log.G(ctx).Infof("read imageRef from label.CRIImageRef: %s", imageRef)
 			repo, _ = constructImageBlobURL(imageRef)
 		}
-		logrus.Infof("construct repoBlobUrl: %s", repo)
+		log.G(ctx).Infof("construct repoBlobUrl: %s", repo)
 
 		size, _ := GetBlobSize(dstDir)
 		if err := constructSpec(dir, parent, repo, digest, size, ""); err != nil {
@@ -241,7 +241,7 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 		// 1.check if the dir exists. Create the dir only when dir doesn't exist.
 		b, err := pathExists(dstDir)
 		if err != nil {
-			logrus.Errorf("LSMD ERROR PathExists(%s) err:%s", dstDir, err)
+			log.G(context.TODO()).Errorf("LSMD ERROR PathExists(%s)", dstDir)
 			return err
 		}
 
@@ -249,11 +249,11 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 			configPath := overlaybdConfPath(dir)
 			configExists, err := pathExists(configPath)
 			if err != nil {
-				logrus.Errorf("LSMD ERROR PathExists(%s) err:%s", configPath, err)
+				log.G(ctx).WithError(err).Errorf("LSMD ERROR PathExists(%s)", configPath)
 				return err
 			}
 			if configExists {
-				logrus.Infof("%s has been created yet.", configPath)
+				log.G(ctx).Infof("%s has been created yet.", configPath)
 				return updateSpec(dir, "")
 			}
 			// config.v1.json does not exist, for early pulled layers
@@ -269,20 +269,20 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 		// 2.create tmpDir in dir
 		tmpDir, err := os.MkdirTemp(dir, "temp_for_prepare_dadimeta")
 		if err != nil {
-			logrus.Errorf("LSMD ERROR os.MkdirTemp(%s.) err:%s", tmpDir, err)
+			log.G(ctx).WithError(err).Errorf("LSMD ERROR os.MkdirTemp(%s.)", tmpDir)
 			return err
 		}
 
 		// 3.copy meta files to tmpDir)
 		srcDir := filepath.Join(dir, "fs")
 		if err := copyPulledZdfsMetaFiles(srcDir, tmpDir); err != nil {
-			logrus.Errorf("failed to copyPulledZdfsMetaFiles(%s, %s), err:%s", srcDir, tmpDir, err)
+			log.G(ctx).WithError(err).Errorf("failed to copyPulledZdfsMetaFiles(%s, %s)", srcDir, tmpDir)
 			return err
 		}
 
 		blockDir := filepath.Join(dir, "block")
 		if err := copyPulledZdfsMetaFiles(srcDir, blockDir); err != nil {
-			logrus.Errorf("failed to copyPulledZdfsMetaFiles(%s, %s), err:%s", srcDir, blockDir, err)
+			log.G(ctx).WithError(err).Errorf("failed to copyPulledZdfsMetaFiles(%s, %s)", srcDir, blockDir)
 			return err
 		}
 
@@ -300,7 +300,7 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 	for m := 0; m < num; m++ {
 		dir := lowers[num-m-1]
 		if err := doDir(dir, parent); err != nil {
-			logrus.Errorf("LSMD ERROR doDir(%s) err:%s", dir, err)
+			log.G(ctx).WithError(err).Errorf("LSMD ERROR doDir(%s)", dir)
 			return true, err
 		}
 		parent = dir
@@ -318,11 +318,11 @@ func copyPulledZdfsMetaFiles(srcDir, dstDir string) error {
 		}
 		data, err := os.ReadFile(srcPath)
 		if err != nil {
-			logrus.Errorf("LSMD ERROR os.ReadFile(srcDir:%s, name:%s) dstDir:%s, err:%s", srcDir, name, dstDir, err)
+			log.G(context.TODO()).WithError(err).Errorf("LSMD ERROR os.ReadFile(srcDir:%s, name:%s) dstDir:%s", srcDir, name, dstDir)
 			return err
 		}
 		if err := os.WriteFile(filepath.Join(dstDir, name), data, 0o666); err != nil {
-			logrus.Errorf("LSMD ERROR os.WriteFile(filepath.Join(dstDir:%s, name:%s) srcDir:%s err:%s", dstDir, name, srcDir, err)
+			log.G(context.TODO()).Errorf("LSMD ERROR os.WriteFile(filepath.Join(dstDir:%s, name:%s) srcDir:%s", dstDir, name, srcDir)
 			return err
 		}
 	}
