@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -84,7 +83,7 @@ func isOverlaybdLayer(dir string) (bool, error) {
 }
 
 func getTrimStringFromFile(filePath string) (string, error) {
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
@@ -142,7 +141,7 @@ func constructImageBlobURL(ref string) (string, error) {
 // loadBackingStoreConfig loads overlaybd target config.
 func loadBackingStoreConfig(dir string) (*types.OverlayBDBSConfig, error) {
 	confPath := overlaybdConfPath(dir)
-	data, err := ioutil.ReadFile(confPath)
+	data, err := os.ReadFile(confPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read config(path=%s) of snapshot %s", confPath, dir)
 	}
@@ -320,11 +319,11 @@ func copyPulledZdfsMetaFiles(srcDir, dstDir string) error {
 		}
 		data, err := os.ReadFile(srcPath)
 		if err != nil {
-			logrus.Errorf("LSMD ERROR ioutil.ReadFile(srcDir:%s, name:%s) dstDir:%s, err:%s", srcDir, name, dstDir, err)
+			logrus.Errorf("LSMD ERROR os.ReadFile(srcDir:%s, name:%s) dstDir:%s, err:%s", srcDir, name, dstDir, err)
 			return err
 		}
 		if err := os.WriteFile(path.Join(dstDir, name), data, 0o666); err != nil {
-			logrus.Errorf("LSMD ERROR ioutil.WriteFile(path.Join(dstDir:%s, name:%s) srcDir:%s err:%s", dstDir, name, srcDir, err)
+			logrus.Errorf("LSMD ERROR os.WriteFile(path.Join(dstDir:%s, name:%s) srcDir:%s err:%s", dstDir, name, srcDir, err)
 			return err
 		}
 	}
