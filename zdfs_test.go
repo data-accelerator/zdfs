@@ -65,23 +65,23 @@ func TestPrepareOverlayBDSpec(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			os.RemoveAll(testdir)
-			os.MkdirAll(filepath.Join(snPath("0"), "fs"), 0755)
-			os.MkdirAll(filepath.Join(snPath("0"), "block"), 0755)
+			os.MkdirAll(filepath.Join(snPath("0"), "fs"), 0o755)
+			os.MkdirAll(filepath.Join(snPath("0"), "block"), 0o755)
 
 			// prepare snapshot dir (image_ref, .oss_url ...)
 			files := []string{iNewFormat, zdfsChecksumFile, zdfsOssurlFile, zdfsOssDataSizeFile, zdfsOssTypeFile}
 			for _, file := range files {
-				if err := os.WriteFile(filepath.Join(snPath("0"), "fs", file), nil, 0644); err != nil {
+				if err := os.WriteFile(filepath.Join(snPath("0"), "fs", file), nil, 0o644); err != nil {
 					t.Fatal(err)
 				}
 			}
 			ossURL := fmt.Sprintf("https://%s/v2/test/blobs/%s", domain, dgst)
-			if err := os.WriteFile(filepath.Join(snPath("0"), "fs", zdfsOssurlFile), []byte(ossURL), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(snPath("0"), "fs", zdfsOssurlFile), []byte(ossURL), 0o644); err != nil {
 				t.Fatal(err)
 			}
 			if tc.imageRef != "" {
 				t.Logf("using image ref: %s", tc.imageRef)
-				if err := os.WriteFile(filepath.Join(snPath("0"), "image_ref"), []byte(tc.imageRef), 0644); err != nil {
+				if err := os.WriteFile(filepath.Join(snPath("0"), "image_ref"), []byte(tc.imageRef), 0o644); err != nil {
 					t.Fatal(err)
 				}
 			}
