@@ -15,7 +15,6 @@ import (
 	"github.com/containerd/containerd/v2/core/snapshots/storage"
 	"github.com/containerd/continuity"
 	"github.com/distribution/reference"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -129,7 +128,7 @@ func GetBlobSize(dir string) (uint64, error) {
 func constructImageBlobURL(ref string) (string, error) {
 	refspec, err := reference.ParseNamed(ref)
 	if err != nil {
-		return "", errors.Wrapf(err, "invalid repo url %s", ref)
+		return "", fmt.Errorf("invalid repo url %s: %w", ref, err)
 	}
 
 	host := reference.Domain(refspec)
@@ -143,12 +142,12 @@ func loadBackingStoreConfig(dir string) (*types.OverlayBDBSConfig, error) {
 	confPath := overlaybdConfPath(dir)
 	data, err := os.ReadFile(confPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read config(path=%s) of snapshot %s", confPath, dir)
+		return nil, fmt.Errorf("failed to read config(path=%s) of snapshot %s: %w", confPath, dir, err)
 	}
 
 	var configJSON types.OverlayBDBSConfig
 	if err := json.Unmarshal(data, &configJSON); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal data(%s)", string(data))
+		return nil, fmt.Errorf("failed to unmarshal data(%s): %w", string(data), err)
 	}
 
 	return &configJSON, nil
@@ -157,12 +156,12 @@ func loadBackingStoreConfig(dir string) (*types.OverlayBDBSConfig, error) {
 func atomicWriteOverlaybdTargetConfig(dir string, configJSON *types.OverlayBDBSConfig) error {
 	data, err := json.Marshal(configJSON)
 	if err != nil {
-		return errors.Wrapf(err, "failed to marshal %+v configJSON into JSON", configJSON)
+		return fmt.Errorf("failed to marshal %+v configJSON into JSON: %w", configJSON, err)
 	}
 
 	confPath := overlaybdConfPath(dir)
 	if err := continuity.AtomicWriteFile(confPath, data, 0o600); err != nil {
-		return errors.Wrapf(err, "failed to commit the overlaybd config on %s", confPath)
+		return fmt.Errorf("failed to commit the overlaybd config on %s: %w", confPath, err)
 	}
 	return nil
 }
