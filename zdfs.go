@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/containerd/accelerated-container-image/pkg/types"
 	"github.com/containerd/containerd/v2/core/snapshots"
@@ -19,12 +18,6 @@ import (
 	"github.com/distribution/reference"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-)
-
-var (
-	zdfsIsReady  bool       // indicate if zdfs' binaries or rpms are ready
-	pouchDirLock sync.Mutex // Used by PrepareMetaForPouch(..) to guarantee thread safe during operating dirs or files
-	blockEngine  string
 )
 
 const (
