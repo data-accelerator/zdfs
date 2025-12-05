@@ -4,36 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/containerd/accelerated-container-image/pkg/types"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/core/snapshots/storage"
 	"github.com/containerd/continuity"
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-)
-
-var (
-	zdfsIsReady  bool       //indicate if zdfs' binaries or rpms are ready
-	pouchDirLock sync.Mutex //Used by PrepareMetaForPouch(..) to guarantee thread safe during operating dirs or files
-	blockEngine  string
 )
 
 const (
-	zdfsMetaDir         = "zdfsmeta"               //meta dir that contains the dadi image meta files
-	iNewFormat          = ".aaaaaaaaaaaaaaaa.lsmt" //characteristic file of dadi image
-	zdfsChecksumFile    = ".checksum_file"         //file containing the checksum data if each dadi layer file to guarantee data consistent
-	zdfsOssurlFile      = ".oss_url"               //file containing the address of layer file
-	zdfsOssDataSizeFile = ".data_size"             //file containing the size of layer file
-	zdfsOssTypeFile     = ".type"                  //file containing the type, such as layern, commit(layer file on local dir), oss(layer file is in oss
+	zdfsMetaDir         = "zdfsmeta"               // meta dir that contains the dadi image meta files
+	iNewFormat          = ".aaaaaaaaaaaaaaaa.lsmt" // characteristic file of dadi image
+	zdfsChecksumFile    = ".checksum_file"         // file containing the checksum data if each dadi layer file to guarantee data consistent
+	zdfsOssurlFile      = ".oss_url"               // file containing the address of layer file
+	zdfsOssDataSizeFile = ".data_size"             // file containing the size of layer file
+	zdfsOssTypeFile     = ".type"                  // file containing the type, such as layern, commit(layer file on local dir), oss(layer file is in oss
 	zdfsTrace           = ".trace"
 
 	overlaybdBaseLayer = "/opt/overlaybd/baselayers/.commit"
@@ -44,18 +35,18 @@ const (
 func pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
-		return true, nil //path exists.
+		return true, nil // path exists.
 	}
 	if os.IsNotExist(err) {
-		return false, nil //pash doen't exist.
+		return false, nil // pash doen't exist.
 	}
-	return false, err //can't make sure if path exists.
+	return false, err // can't make sure if path exists.
 }
 
 func hasOverlaybdBlobRef(dir string) (bool, error) {
 	fileNames := []string{iNewFormat, zdfsChecksumFile, zdfsOssurlFile, zdfsOssDataSizeFile, zdfsOssTypeFile}
 	for _, name := range fileNames {
-		fullPath := path.Join(dir, name)
+		fullPath := filepath.Join(dir, name)
 		b, err := pathExists(fullPath)
 		if err != nil {
 			return false, fmt.Errorf("LSMD ERROR failed to check if %s exists. err:%s", fullPath, err)
@@ -82,16 +73,16 @@ func isOverlaybdLayer(dir string) (bool, error) {
 		return true, nil
 	}
 
-	b, err := hasOverlaybdBlobRef(path.Join(dir, "fs"))
+	b, err := hasOverlaybdBlobRef(filepath.Join(dir, "fs"))
 	if err != nil {
-		logrus.Errorf("LSMD ERROR failed to IsZdfsLayerInApplyDiff(dir%s), err:%s", dir, err)
+		log.G(context.TODO()).WithError(err).Errorf("LSMD ERROR failed to IsZdfsLayerInApplyDiff(dir%s)", dir)
 		return false, fmt.Errorf("LSMD ERROR failed to IsZdfsLayerInApplyDiff(dir%s), err:%s", dir, err)
 	}
 	return b, nil
 }
 
 func getTrimStringFromFile(filePath string) (string, error) {
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
@@ -113,7 +104,7 @@ func updateSpec(dir, recordTracePath string) error {
 
 func GetBlobRepoDigest(dir string) (string, string, error) {
 	// get repoUrl from .oss_url
-	url, err := getTrimStringFromFile(path.Join(dir, zdfsOssurlFile))
+	url, err := getTrimStringFromFile(filepath.Join(dir, zdfsOssurlFile))
 	if err != nil {
 		return "", "", err
 	}
@@ -127,7 +118,7 @@ func GetBlobRepoDigest(dir string) (string, string, error) {
 }
 
 func GetBlobSize(dir string) (uint64, error) {
-	str, err := getTrimStringFromFile(path.Join(dir, zdfsOssDataSizeFile))
+	str, err := getTrimStringFromFile(filepath.Join(dir, zdfsOssDataSizeFile))
 	if err != nil {
 		return 0, err
 	}
@@ -137,7 +128,7 @@ func GetBlobSize(dir string) (uint64, error) {
 func constructImageBlobURL(ref string) (string, error) {
 	refspec, err := reference.ParseNamed(ref)
 	if err != nil {
-		return "", errors.Wrapf(err, "invalid repo url %s", ref)
+		return "", fmt.Errorf("invalid repo url %s: %w", ref, err)
 	}
 
 	host := reference.Domain(refspec)
@@ -149,14 +140,14 @@ func constructImageBlobURL(ref string) (string, error) {
 // loadBackingStoreConfig loads overlaybd target config.
 func loadBackingStoreConfig(dir string) (*types.OverlayBDBSConfig, error) {
 	confPath := overlaybdConfPath(dir)
-	data, err := ioutil.ReadFile(confPath)
+	data, err := os.ReadFile(confPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read config(path=%s) of snapshot %s", confPath, dir)
+		return nil, fmt.Errorf("failed to read config(path=%s) of snapshot %s: %w", confPath, dir, err)
 	}
 
 	var configJSON types.OverlayBDBSConfig
 	if err := json.Unmarshal(data, &configJSON); err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal data(%s)", string(data))
+		return nil, fmt.Errorf("failed to unmarshal data(%s): %w", string(data), err)
 	}
 
 	return &configJSON, nil
@@ -165,12 +156,12 @@ func loadBackingStoreConfig(dir string) (*types.OverlayBDBSConfig, error) {
 func atomicWriteOverlaybdTargetConfig(dir string, configJSON *types.OverlayBDBSConfig) error {
 	data, err := json.Marshal(configJSON)
 	if err != nil {
-		return errors.Wrapf(err, "failed to marshal %+v configJSON into JSON", configJSON)
+		return fmt.Errorf("failed to marshal %+v configJSON into JSON: %w", configJSON, err)
 	}
 
 	confPath := overlaybdConfPath(dir)
-	if err := continuity.AtomicWriteFile(confPath, data, 0600); err != nil {
-		return errors.Wrapf(err, "failed to commit the overlaybd config on %s", confPath)
+	if err := continuity.AtomicWriteFile(confPath, data, 0o600); err != nil {
+		return fmt.Errorf("failed to commit the overlaybd config on %s: %w", confPath, err)
 	}
 	return nil
 }
@@ -201,13 +192,12 @@ func constructSpec(dir, parent, repo, digest string, size uint64, recordTracePat
 	configJSON.Lowers = append(configJSON.Lowers, types.OverlayBDBSConfigLower{
 		Digest: digest,
 		Size:   int64(size),
-		Dir:    path.Join(dir, "block"),
+		Dir:    filepath.Join(dir, "block"),
 	})
 	return atomicWriteOverlaybdTargetConfig(dir, &configJSON)
 }
 
 func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapshots.Info, snPath func(string) string) (bool, error) {
-
 	if b, err := isOverlaybdLayer(dir); !b {
 		return false, nil
 	} else if err != nil {
@@ -222,22 +212,22 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 		return ret
 	}()
 	makeConfig := func(dir string, parent string) error {
-		logrus.Infof("ENTER makeConfig(dir: %s, parent: %s)", dir, parent)
-		dstDir := path.Join(dir, "block")
+		log.G(ctx).Infof("ENTER makeConfig(dir: %s, parent: %s)", dir, parent)
+		dstDir := filepath.Join(dir, "block")
 
 		repo, digest, err := GetBlobRepoDigest(dstDir)
 		if err != nil {
 			return err
 		}
 
-		refPath := path.Join(dir, "image_ref")
+		refPath := filepath.Join(dir, "image_ref")
 		if b, _ := pathExists(refPath); b {
 			img, _ := os.ReadFile(refPath)
 			imageRef := string(img)
-			logrus.Infof("read imageRef from label.CRIImageRef: %s", imageRef)
+			log.G(ctx).Infof("read imageRef from label.CRIImageRef: %s", imageRef)
 			repo, _ = constructImageBlobURL(imageRef)
 		}
-		logrus.Infof("construct repoBlobUrl: %s", repo)
+		log.G(ctx).Infof("construct repoBlobUrl: %s", repo)
 
 		size, _ := GetBlobSize(dstDir)
 		if err := constructSpec(dir, parent, repo, digest, size, ""); err != nil {
@@ -247,11 +237,11 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 	}
 
 	doDir := func(dir string, parent string) error {
-		dstDir := path.Join(dir, zdfsMetaDir)
-		//1.check if the dir exists. Create the dir only when dir doesn't exist.
+		dstDir := filepath.Join(dir, zdfsMetaDir)
+		// 1.check if the dir exists. Create the dir only when dir doesn't exist.
 		b, err := pathExists(dstDir)
 		if err != nil {
-			logrus.Errorf("LSMD ERROR PathExists(%s) err:%s", dstDir, err)
+			log.G(context.TODO()).Errorf("LSMD ERROR PathExists(%s)", dstDir)
 			return err
 		}
 
@@ -259,49 +249,49 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 			configPath := overlaybdConfPath(dir)
 			configExists, err := pathExists(configPath)
 			if err != nil {
-				logrus.Errorf("LSMD ERROR PathExists(%s) err:%s", configPath, err)
+				log.G(ctx).WithError(err).Errorf("LSMD ERROR PathExists(%s)", configPath)
 				return err
 			}
 			if configExists {
-				logrus.Infof("%s has been created yet.", configPath)
+				log.G(ctx).Infof("%s has been created yet.", configPath)
 				return updateSpec(dir, "")
 			}
 			// config.v1.json does not exist, for early pulled layers
 			return makeConfig(dir, parent)
 		}
 
-		b, _ = pathExists(path.Join(dir, "block", "config.v1.json"))
+		b, _ = pathExists(filepath.Join(dir, "block", "config.v1.json"))
 		if b {
 			// is new dadi format
 			return nil
 		}
 
-		//2.create tmpDir in dir
+		// 2.create tmpDir in dir
 		tmpDir, err := os.MkdirTemp(dir, "temp_for_prepare_dadimeta")
 		if err != nil {
-			logrus.Errorf("LSMD ERROR os.MkdirTemp(%s.) err:%s", tmpDir, err)
+			log.G(ctx).WithError(err).Errorf("LSMD ERROR os.MkdirTemp(%s.)", tmpDir)
 			return err
 		}
 
-		//3.copy meta files to tmpDir)
-		srcDir := path.Join(dir, "fs")
+		// 3.copy meta files to tmpDir)
+		srcDir := filepath.Join(dir, "fs")
 		if err := copyPulledZdfsMetaFiles(srcDir, tmpDir); err != nil {
-			logrus.Errorf("failed to copyPulledZdfsMetaFiles(%s, %s), err:%s", srcDir, tmpDir, err)
+			log.G(ctx).WithError(err).Errorf("failed to copyPulledZdfsMetaFiles(%s, %s)", srcDir, tmpDir)
 			return err
 		}
 
-		blockDir := path.Join(dir, "block")
+		blockDir := filepath.Join(dir, "block")
 		if err := copyPulledZdfsMetaFiles(srcDir, blockDir); err != nil {
-			logrus.Errorf("failed to copyPulledZdfsMetaFiles(%s, %s), err:%s", srcDir, blockDir, err)
+			log.G(ctx).WithError(err).Errorf("failed to copyPulledZdfsMetaFiles(%s, %s)", srcDir, blockDir)
 			return err
 		}
 
-		//4.rename tmpDir to zdfsmeta
+		// 4.rename tmpDir to zdfsmeta
 		if err = os.Rename(tmpDir, dstDir); err != nil {
 			return err
 		}
 
-		//5.generate config.v1.json
+		// 5.generate config.v1.json
 		return makeConfig(dir, parent)
 	}
 
@@ -310,7 +300,7 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 	for m := 0; m < num; m++ {
 		dir := lowers[num-m-1]
 		if err := doDir(dir, parent); err != nil {
-			logrus.Errorf("LSMD ERROR doDir(%s) err:%s", dir, err)
+			log.G(ctx).WithError(err).Errorf("LSMD ERROR doDir(%s)", dir)
 			return true, err
 		}
 		parent = dir
@@ -322,17 +312,17 @@ func PrepareOverlayBDSpec(ctx context.Context, key, id, dir string, info snapsho
 func copyPulledZdfsMetaFiles(srcDir, dstDir string) error {
 	fileNames := []string{iNewFormat, zdfsChecksumFile, zdfsOssurlFile, zdfsOssDataSizeFile, zdfsOssTypeFile, zdfsTrace}
 	for _, name := range fileNames {
-		srcPath := path.Join(srcDir, name)
+		srcPath := filepath.Join(srcDir, name)
 		if _, err := os.Stat(srcPath); err != nil && os.IsNotExist(err) {
 			continue
 		}
 		data, err := os.ReadFile(srcPath)
 		if err != nil {
-			logrus.Errorf("LSMD ERROR ioutil.ReadFile(srcDir:%s, name:%s) dstDir:%s, err:%s", srcDir, name, dstDir, err)
+			log.G(context.TODO()).WithError(err).Errorf("LSMD ERROR os.ReadFile(srcDir:%s, name:%s) dstDir:%s", srcDir, name, dstDir)
 			return err
 		}
-		if err := os.WriteFile(path.Join(dstDir, name), data, 0666); err != nil {
-			logrus.Errorf("LSMD ERROR ioutil.WriteFile(path.Join(dstDir:%s, name:%s) srcDir:%s err:%s", dstDir, name, srcDir, err)
+		if err := os.WriteFile(filepath.Join(dstDir, name), data, 0o666); err != nil {
+			log.G(context.TODO()).Errorf("LSMD ERROR os.WriteFile(filepath.Join(dstDir:%s, name:%s) srcDir:%s", dstDir, name, srcDir)
 			return err
 		}
 	}
